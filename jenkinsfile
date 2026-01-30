@@ -1,0 +1,70 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Code') {
+            steps {
+                echo 'Cloning the Code'
+                git branch: 'main', url: 'https://github.com/psanjayk04/DevopsProject1.git'
+            }
+        }
+
+        stage('Maven Unit Test') {
+            steps {
+                dir('/var/lib/jenkins/workspace/pipeline') {
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Maven Build') {
+            steps {
+                dir('/var/lib/jenkins/workspace/pipeline') {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+
+        stage('Maven Integration Test') {
+            steps {
+                dir('/var/lib/jenkins/workspace/pipeline') {
+                    sh 'mvn verify'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo 'Build the image'
+                sh 'docker build -t ci-pipeline .'
+            }
+        }
+
+        stage('Pushing the image to Dockerhub') {
+            steps {
+                echo 'pushing image to docker hub'
+
+                withCredentials([usernamePassword(credentialsId:'dockerhub',passwordVariable:'dockerhubPass',usernameVariable:'dockerhubuser')]) {
+                    sh "docker tag ci-pipeline ${dockerhubuser}/cipipelinelatest"
+                    sh "docker login -u ${dockerhubuser} -p ${dockerhubPass}"
+                    sh "docker push ${dockerhubuser}/cipipelinelatest"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    dir('/var/lib/jenkins/workspace/pipeline') {
+                        kubeconfig(certificateAuthority:'',clusterName:'',contextName:'',credentialsId:'kubernetes',namespace:'',restrictKubeConfigAccess:false,serverUrl:') {
+                            sh 'kubectl delete -f all-pods'
+                            sh 'kubectl apply -f deployment.yaml'
+                            sh 'kubectl apply -f service.yaml'                            
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
