@@ -37,7 +37,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo 'Build the image'
-                sh 'docker build -t ci-pipeline:latest .'
+                sh 'docker build --no-cache -t psanjayk04/ci-pipeline:latest .'
             }
         }
 
