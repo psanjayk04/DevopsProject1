@@ -12,45 +12,40 @@ pipeline {
 
         stage('Maven Unit Test') {
             steps {
-                dir('/var/lib/jenkins/workspace/pipeline') {
-                    sh 'mvn test'
-                }
+                sh 'mvn test'
             }
         }
 
         stage('Maven Build') {
             steps {
-                dir('/var/lib/jenkins/workspace/pipeline') {
-                    sh 'mvn clean install'
-                }
+                sh 'mvn clean install'
             }
         }
 
         stage('Maven Integration Test') {
             steps {
-                dir('/var/lib/jenkins/workspace/pipeline') {
-                    sh 'mvn verify'
-                }
+                sh 'mvn verify'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Build the image'
                 sh 'docker build --no-cache -t psanjayk04/ci-pipeline:latest .'
             }
         }
 
-        stage('Pushing the image to Dockerhub') {
+        stage('Push Docker Image') {
             steps {
-                echo 'Pushing image to Docker Hub'
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub',
+                    usernameVariable: 'DOCKERHUB_USER',
+                    passwordVariable: 'DOCKERHUB_PASS'
+                )]) {
 
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKERHUB_PASS', usernameVariable: 'DOCKERHUB_USER')]) {
-                    // Use a proper image name + tag and push securely
-                    sh "docker tag ci-pipeline:latest ${DOCKERHUB_USER}/ci-pipeline:latest"
-                    // Safer login using password-stdin
-                    sh "echo ${DOCKERHUB_PASS} | docker login --username ${DOCKERHUB_USER} --password-stdin"
-                    sh "docker push ${DOCKERHUB_USER}/ci-pipeline:latest"
+                    sh '''
+                    echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+                    docker push $DOCKERHUB_USER/ci-pipeline:latest
+                    '''
                 }
             }
         }
@@ -67,6 +62,6 @@ pipeline {
                     }
                 }
             }
-        }
+        }    
     }
 }
