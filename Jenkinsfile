@@ -12,40 +12,45 @@ pipeline {
 
         stage('Maven Unit Test') {
             steps {
-                sh 'mvn test'
+                dir('/var/lib/jenkins/workspace/pipeline') {
+                    sh 'mvn test'
+                }
             }
         }
 
         stage('Maven Build') {
             steps {
-                sh 'mvn clean install'
+                dir('/var/lib/jenkins/workspace/pipeline') {
+                    sh 'mvn clean install'
+                }
             }
         }
 
         stage('Maven Integration Test') {
             steps {
-                sh 'mvn verify'
+                dir('/var/lib/jenkins/workspace/pipeline') {
+                    sh 'mvn verify'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
+                echo 'Build the image'
                 sh 'docker build --no-cache -t psanjayk04/ci-pipeline:latest .'
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Pushing the image to Dockerhub') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub',
-                    usernameVariable: 'DOCKERHUB_USER',
-                    passwordVariable: 'DOCKERHUB_PASS'
-                )]) {
+                echo 'Pushing image to Docker Hub'
 
-                    sh '''
-                    echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
-                    docker push $DOCKERHUB_USER/ci-pipeline:latest
-                    '''
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKERHUB_PASS', usernameVariable: 'DOCKERHUB_USER')]) {
+                    // Use a proper image name + tag and push securely
+                    sh "docker tag ci-pipeline:latest ${DOCKERHUB_USER}/ci-pipeline:latest"
+                    // Safer login using password-stdin
+                    sh "echo ${DOCKERHUB_PASS} | docker login --username ${DOCKERHUB_USER} --password-stdin"
+                    sh "docker push ${DOCKERHUB_USER}/ci-pipeline:latest"
                 }
             }
         }
@@ -62,6 +67,6 @@ pipeline {
                     }
                 }
             }
-        }    
+        }
     }
 }
